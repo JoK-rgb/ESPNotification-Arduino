@@ -14,6 +14,9 @@ bool deviceConnected = false;
 bool oldDeviceConnected = false;
 uint8_t txValue = 0;
 
+unsigned long lastNotifyTime = 0;
+const unsigned long notifyInterval = 100;
+
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
 
@@ -100,11 +103,11 @@ void setup() {
 
 void loop() {
 
-  if (deviceConnected) {
+  if (deviceConnected && (millis() - lastNotifyTime >= notifyInterval)) {
     pTxCharacteristic->setValue(&txValue, 1);
     pTxCharacteristic->notify();
     txValue++;
-    delay(10);  // bluetooth stack will go into congestion, if too many packets are sent
+    lastNotifyTime = millis();
   }
 
   // disconnecting
