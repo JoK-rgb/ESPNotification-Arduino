@@ -2,11 +2,16 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
-#include <OLED_I2C.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
-OLED  myOLED(6, 7); // Remember to add the RESET pin if your display requires it...
+#define SCREEN_WIDTH 128 
+#define SCREEN_HEIGHT 64
+#define OLED_RESET    -1
+#define SCREEN_ADDRESS 0x3C
 
-extern uint8_t SmallFont[];
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 BLEServer *pServer = NULL;
 BLECharacteristic *pTxCharacteristic;
@@ -17,10 +22,7 @@ uint8_t txValue = 0;
 unsigned long lastNotifyTime = 0;
 const unsigned long notifyInterval = 100;
 
-// See the following for generating UUIDs:
-// https://www.uuidgenerator.net/
-
-#define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"  // UART service UUID
+#define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
@@ -39,36 +41,39 @@ class MyCallbacks : public BLECharacteristicCallbacks {
     String rxValue = pCharacteristic->getValue();
 
     if (rxValue.length() > 0) {
-      /*
-      for (int i = 0; i < rxValue.length(); i++) {
-        Serial.print(rxValue[i]);
-      }
-      */
-
-      scrollText(rxValue);
-      //Serial.println();
+      scrollText(rxValue, 4, 2);
     }
   }
 
-  void scrollText(String text, int scrollSpeed = 2) {
-    
-    char textBuffer[text.length() + 1]; // create a buffer to store the C-style string
-    strcpy(textBuffer, text.c_str()); // copy the String to the buffer
-    strcat(textBuffer, " ");
+  void scrollText(String text, int scrollspeed, int textsize) {
+    display.setTextSize(textsize);
+    display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
 
-    for (int i=128; i>=-(34*6); i-=scrollSpeed)
-    {
-      myOLED.print(textBuffer, i, 32);
-      myOLED.update();
+    int textWidth = text.length() * 6 * textsize;
+    int y = (SCREEN_HEIGHT - (8 * textsize)) / 2;
+
+    for (int x = SCREEN_WIDTH; x > -textWidth; x=x-scrollspeed) {
+      display.clearDisplay();
+      display.setCursor(x, y);
+      display.print(text);
+      display.display();
     }
 
-    myOLED.clrScr();
-    myOLED.update();
+    display.clearDisplay();
+    display.display();
   }
 };
 
 void setup() {
   Serial.begin(115200);
+  Wire.begin(6, 7);
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;) ;
+  }
+  display.clearDisplay();
 
   // Create the BLE Device
   BLEDevice::init("ESP32");
@@ -76,29 +81,15 @@ void setup() {
   // Create the BLE Server
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
-
-  // Create the BLE Service
   BLEService *pService = pServer->createService(SERVICE_UUID);
-
-  // Create a BLE Characteristic
   pTxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY);
-
   pTxCharacteristic->addDescriptor(new BLE2902());
-
   BLECharacteristic *pRxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_RX, BLECharacteristic::PROPERTY_WRITE);
-
   pRxCharacteristic->setCallbacks(new MyCallbacks());
-
-  // Start the service
   pService->start();
-
-  // Start advertising
   pServer->getAdvertising()->start();
 
-  if(!myOLED.begin(SSD1306_128X64))
-  while(1);   // In case the library failed to allocate enough RAM for the display buffer...
-  myOLED.setFont(SmallFont);
-  scrollText("Waiting a client connection to notify...", 3);
+  scrollText("Waiting for client", 4, 2);
 }
 
 void loop() {
@@ -114,7 +105,7 @@ void loop() {
   if (!deviceConnected && oldDeviceConnected) {
     delay(500);                   // give the bluetooth stack the chance to get things ready
     pServer->startAdvertising();  // restart advertising
-    scrollText("start advertising", 3);
+    scrollText("start advertising", 4, 2);
     oldDeviceConnected = deviceConnected;
   }
   // connecting
@@ -124,19 +115,22 @@ void loop() {
   }
 }
 
-void scrollText(String text, int scrollSpeed) {
-  
-  char textBuffer[text.length() + 1]; // create a buffer to store the C-style string
-  strcpy(textBuffer, text.c_str()); // copy the String to the buffer
-  strcat(textBuffer, " ");
+void scrollText(String text, int scrollspeed, int textsize) {
+  display.setTextSize(textsize);
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextWrap(false);
 
-  for (int i=128; i>=-(34*6); i-=scrollSpeed)
-  {
-    myOLED.print(textBuffer, i, 32);
-    myOLED.update();
+  int textWidth = text.length() * 6 * textsize;
+  int y = (SCREEN_HEIGHT - (8 * textsize)) / 2;
+
+  for (int x = SCREEN_WIDTH; x > -textWidth; x=x-scrollspeed) {
+    display.clearDisplay();
+    display.setCursor(x, y);
+    display.print(text);
+    display.display();
   }
 
-  myOLED.clrScr();
-  myOLED.update();
+  display.clearDisplay();
+  display.display();
 }
 
