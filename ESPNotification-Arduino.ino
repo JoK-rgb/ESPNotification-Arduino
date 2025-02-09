@@ -43,8 +43,120 @@ class MyCallbacks : public BLECharacteristicCallbacks {
     String rxValue = pCharacteristic->getValue();
 
     if (rxValue.length() > 0) {
-      scrollText(rxValue, 7, 2);
+      displayText(rxValue, 1, 5000);
     }
+  }
+
+  String* splitString(String inputString) {
+    static String parts[3];
+    int firstSep = inputString.indexOf("||");
+    int secondSep = inputString.indexOf("||", firstSep + 2);
+    if (firstSep != -1 && secondSep != -1) {
+      parts[0] = inputString.substring(0, firstSep);
+      parts[1] = inputString.substring(firstSep + 2, secondSep);
+      parts[2] = inputString.substring(secondSep + 2);
+    } else {
+      parts[0] = parts[1] = parts[2] = "";
+    }
+    return parts;
+  }
+
+  String wordWrap(String text, int maxWidth) {
+    String result = "";
+    String currentLine = "";
+    int16_t x1, y1;
+    uint16_t w, h;
+
+    int start = 0;
+    int spaceIndex = text.indexOf(' ', start);
+    while (spaceIndex != -1) {
+      String word = text.substring(start, spaceIndex);
+      if (currentLine.length() == 0) {
+        display.getTextBounds(word.c_str(), 0, 0, &x1, &y1, &w, &h);
+        if (w > maxWidth) {
+          for (int i = 0; i < word.length(); i++) {
+            String testWord = currentLine + word.charAt(i);
+            display.getTextBounds(testWord.c_str(), 0, 0, &x1, &y1, &w, &h);
+            if (w > maxWidth) {
+              result += currentLine + "\n";
+              currentLine = "";
+              currentLine += word.charAt(i);
+            } else {
+              currentLine += word.charAt(i);
+            }
+          }
+        } else {
+          currentLine = word;
+        }
+      }
+      else {
+        String testLine = currentLine + " " + word;
+        display.getTextBounds(testLine.c_str(), 0, 0, &x1, &y1, &w, &h);
+        if (w > maxWidth) {
+          result += currentLine + "\n";
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      start = spaceIndex + 1;
+      spaceIndex = text.indexOf(' ', start);
+    }
+    String remaining = text.substring(start);
+    if (remaining.length() > 0) {
+      if (currentLine.length() > 0) {
+        String testLine = currentLine + " " + remaining;
+        display.getTextBounds(testLine.c_str(), 0, 0, &x1, &y1, &w, &h);
+        if (w > maxWidth) {
+          result += currentLine + "\n" + remaining;
+        } else {
+          result += testLine;
+        }
+      } else {
+        result += remaining;
+      }
+    } else {
+      result += currentLine;
+    }
+    return result;
+  }
+
+  void displayText(String text, int textsize, int displayTime) {
+    String* stringParts = splitString(text);
+
+    if(stringParts[0] == "" && stringParts[2] != "") {
+      // if splitParts[0] is empty it is a information message from the NotificationListener App itself
+
+      scrollText(stringParts[2], 5, 2);
+    } else {
+      // actual notification
+
+      blockText(stringParts, textsize, displayTime);
+    }
+  }
+
+  void blockText(String* stringParts, int textsize, int displayTime) {
+      display.clearDisplay();
+      display.setTextSize(textsize);
+      display.setTextColor(SSD1306_WHITE);
+      display.setCursor(0, 0);
+      display.setTextWrap(false);
+
+      display.println(stringParts[0]);
+      display.println(stringParts[1]);
+
+      int lineY = display.getCursorY();
+      display.drawLine(0, lineY, display.width() - 1, lineY, SSD1306_WHITE);
+      display.println();
+
+      String wrappedThird = wordWrap(stringParts[2], display.width());
+      display.println(wrappedThird);
+
+      display.display();
+      delay(displayTime);
+
+      display.clearDisplay();
+      display.display();
   }
 
   void scrollText(String text, int scrollspeed, int textsize) {
@@ -90,7 +202,7 @@ void setup() {
   pService->start();
   pServer->getAdvertising()->start();
 
-  scrollText("Waiting for client", 7, 2);
+  scrollText("Waiting for client", 5, 2);
 }
 
 void loop() {
@@ -106,7 +218,7 @@ void loop() {
   if (!deviceConnected && oldDeviceConnected) {
     delay(500);                  
     pServer->startAdvertising(); 
-    scrollText("start advertising", 7, 2);
+    scrollText("start advertising", 5, 2);
     oldDeviceConnected = deviceConnected;
   }
 
@@ -134,4 +246,5 @@ void scrollText(String text, int scrollspeed, int textsize) {
   display.clearDisplay();
   display.display();
 }
+
 
