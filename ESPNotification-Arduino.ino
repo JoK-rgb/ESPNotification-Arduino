@@ -1,3 +1,5 @@
+#define ADAFRUIT_ASCII96 0
+
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
@@ -41,7 +43,7 @@ class MyCallbacks : public BLECharacteristicCallbacks {
     String rxValue = pCharacteristic->getValue();
 
     if (rxValue.length() > 0) {
-      scrollText(rxValue, 4, 2);
+      scrollText(rxValue, 7, 2);
     }
   }
 
@@ -73,12 +75,11 @@ void setup() {
     Serial.println(F("SSD1306 allocation failed"));
     for (;;) ;
   }
+  display.cp437(true);
   display.clearDisplay();
 
-  // Create the BLE Device
   BLEDevice::init("ESP32");
 
-  // Create the BLE Server
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
   BLEService *pService = pServer->createService(SERVICE_UUID);
@@ -89,7 +90,7 @@ void setup() {
   pService->start();
   pServer->getAdvertising()->start();
 
-  scrollText("Waiting for client", 4, 2);
+  scrollText("Waiting for client", 7, 2);
 }
 
 void loop() {
@@ -103,14 +104,14 @@ void loop() {
 
   // disconnecting
   if (!deviceConnected && oldDeviceConnected) {
-    delay(500);                   // give the bluetooth stack the chance to get things ready
-    pServer->startAdvertising();  // restart advertising
-    scrollText("start advertising", 4, 2);
+    delay(500);                  
+    pServer->startAdvertising(); 
+    scrollText("start advertising", 7, 2);
     oldDeviceConnected = deviceConnected;
   }
+
   // connecting
   if (deviceConnected && !oldDeviceConnected) {
-    // do stuff here on connecting
     oldDeviceConnected = deviceConnected;
   }
 }
