@@ -28,6 +28,8 @@ const unsigned long notifyInterval = 100;
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
+#define BEEPER_PIN  14
+
 class MyServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer *pServer) {
     deviceConnected = true;
@@ -122,6 +124,8 @@ class MyCallbacks : public BLECharacteristicCallbacks {
   }
 
   void displayText(String text, int textsize, int displayTime) {
+    tone(BEEPER_PIN, 2000, 100);
+
     String* stringParts = splitString(text);
 
     if(stringParts[0] == "" && stringParts[2] != "") {
@@ -190,7 +194,7 @@ void setup() {
   display.cp437(true);
   display.clearDisplay();
 
-  BLEDevice::init("ESP32");
+  BLEDevice::init("ESP32 Notification Display");
 
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
